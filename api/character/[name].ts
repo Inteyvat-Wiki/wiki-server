@@ -1,33 +1,22 @@
 import { read, read_lang } from '#server/utils/read';
-import { convertDarkHexToLightRGBA } from '#server/utils/color';
 import type { Character } from '~/types/character';
+import type { Character as RawCharacter } from '#server/types/raw_character';
 import type { Settings } from '~/types/settings';
-import { RawCharacter } from '#server/types/raw_character';
-import { create_i18n } from '#server/utils/i18n'
-
-function round(num: number, digits: number) {
-    const factor = 10 ** digits
-    return Math.round((num + Number.EPSILON) * factor) / factor
-}
-function round_number(str: string, digit: number): string {
-    return str.replace(/(-?\d+\.\d+)?/g, (match) => {
-        const num = parseFloat(match)
-        if (isNaN(num)) return match
-        return round(num, digit).toString()
-    })
-}
+import { create_i18n } from '#server/utils/i18n';
+import { process_text } from '#server/utils/text';
+import { round, round_string } from '#server/utils/value';
 
 function get_character_stats_list(val: Record<number, string>[]): Record<number, string>[] {
     for (let row of val) {
         for (let key in row) {
-            if (row[key]) row[key] = round_number(row[key], 0);
+            if (row[key]) row[key] = round_string(row[key], 0);
         }
     }
     return val;
 }
 function get_character_substats_list(val: string[]): string[] {
     for (let i = 0; i < val.length; i++) {
-        if (val[i]) val[i] = round_number(val[i] || '0', 1);
+        if (val[i]) val[i] = round_string(val[i] || '0', 1);
     }
     return val;
 }
@@ -37,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
     const lang = (query.lang || 'zh_cn') as string;
     const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string) as Settings;
+    const settings = JSON.parse(query.settings as string || '{}') as Settings;
 
     const name = event.context.params?.name;
 
@@ -122,45 +111,19 @@ export default defineEventHandler(async (event) => {
                 value: values,
             };
         }
-        function process_text(text: string): string {
+        function process_text_with_link(text: string): string {
             if (!text) return text;
-
-            text = text.replace(/\n/g, '<br>');
-            text = text.replace(
-                /<color=(#[A-Fa-f0-9]{6,8})>(.*?)<\/color>/g,
-                (_match, color, content) => {
-                    return `<span class="colored_content" style="color:${convertDarkHexToLightRGBA(color)}">${content}</span>`;
-                }
-            );
             text = text.replace(
                 /{LINK#([A-Z0-9]+)}([^{}]+){\/LINK}/g,
                 (_match, id, content) => {
                     return `<span class="linked_content" data-id="${links[id]}">${content}</span>`;
                 }
             );
-
-            text = text.replace(/{NICKNAME}/g, (_match) => { return settings.traveller_name || t('settings.default_traveller_name'); });
-            text = text.replace(/{M#([^{}]+)}/g, (_match, content) => { return settings.traveller == 'aether' ? content : ''; });
-            text = text.replace(/{F#([^{}]+)}/g, (_match, content) => { return settings.traveller == 'lumine' ? content : ''; });
-
-            text = text.replace(/{REALNAME\[ID\(1\)\]}/g, (_match) => { return settings.wanderer_name || t('settings.default_wanderer_name'); });
-            text = text.replace(/{REALNAME\[ID\(2\)\]}/g, (_match) => { return settings.littleone_name || t('settings.default_littleone_name'); });
-
-            text = text.replace(/{TIMEZONE}/g, (_match) => { return ''; });
-
-            text = text.replace(/#/g, (_match) => { return ''; });
-            text = text.replace(
-                /{[^{}]+}/g,
-                (_match) => {
-                    console.error(`Unprocessed placeholder: ${_match}`);
-                    return '';
-                }
-            );
-            return text;
+            return process_text(text, settings, t);
         }
 
         for (let info of rawdata.info) {
-            info.description = process_text(info.description);
+            info.description = process_text_with_link(info.description);
             res.info.push(info);
         }
 
@@ -201,10 +164,10 @@ export default defineEventHandler(async (event) => {
 
                 res.skills.push({
                     id: links[`S${skill.id}`] || null,
-                    title: process_text(skill.title),
+                    title: process_text_with_link(skill.title),
                     sub_title: sub_title,
                     icon: skill.icon,
-                    description: process_text(skill.description),
+                    description: process_text_with_link(skill.description),
                     details: details,
                 });
             }
@@ -222,10 +185,10 @@ export default defineEventHandler(async (event) => {
 
             res.talents.push({
                 id: links[`P${talent.id}`] || null,
-                title: process_text(talent.title),
+                title: process_text_with_link(talent.title),
                 sub_title: sub_title,
                 icon: talent.icon,
-                description: process_text(talent.description),
+                description: process_text_with_link(talent.description),
             });
         }
         {
@@ -233,42 +196,42 @@ export default defineEventHandler(async (event) => {
             for (let constellation of rawdata.constellations) {
                 res.constellations.push({
                     id: links[`T${constellation.id}`] || null,
-                    title: process_text(constellation.title),
+                    title: process_text_with_link(constellation.title),
                     sub_title: t(`constellation.constellation${++index}`),
                     icon: constellation.icon,
-                    description: process_text(constellation.description),
+                    description: process_text_with_link(constellation.description),
                 })
             }
         }
         for (let link_desc of rawdata.link_description) {
             res.link_description.push({
                 id: links[`N${link_desc.id}`] || 0,
-                title: process_text(link_desc.title),
-                description: process_text(link_desc.description),
+                title: process_text_with_link(link_desc.title),
+                description: process_text_with_link(link_desc.description),
             })
         }
         for (let story of rawdata.stories) {
             res.stories.push({
-                title: process_text(story.title),
-                content: process_text(story.content),
-                tips: story.tips.map((tip) => process_text(tip)),
+                title: process_text_with_link(story.title),
+                content: process_text_with_link(story.content),
+                tips: story.tips.map((tip) => process_text_with_link(tip)),
             })
         }
         for (let voiceover of rawdata.voiceovers) {
             if (voiceover.type === 'dialog') {
                 res.voiceovers.push({
-                    title: process_text(voiceover.title),
+                    title: process_text_with_link(voiceover.title),
                     type: voiceover.type,
-                    content: process_text(voiceover.content),
-                    tips: voiceover.tips.map((tip) => process_text(tip)),
+                    content: process_text_with_link(voiceover.content),
+                    tips: voiceover.tips.map((tip) => process_text_with_link(tip)),
                 })
             }
         }
         for (let image of rawdata.images) {
             res.images.push({
-                title: process_text(image.title),
+                title: process_text_with_link(image.title),
                 image: image.image,
-                description: image.description ? process_text(image.description) : null,
+                description: image.description ? process_text_with_link(image.description) : null,
             })
         }
 

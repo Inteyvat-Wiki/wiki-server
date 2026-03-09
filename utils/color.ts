@@ -69,8 +69,9 @@ export function convertDarkHexToLightRGBA(hex: string): string {
 
   // 调整亮度
   let newL = hsl.l;
-  if (newL < 50) newL = Math.min(80, newL + 40);  // 深色 → 提亮
-  else newL = Math.max(20, newL - 20);             // 已亮 → 稍暗
+  if (newL < 50) newL = Math.min(80, newL + 40);
+  else if (newL < 80) newL = Math.max(40, newL - 30);
+  else newL -= 35;
 
   const newRgba = hslToRgba(hsl.h, hsl.s, newL, a);
   return `rgba(${newRgba.r}, ${newRgba.g}, ${newRgba.b}, ${newRgba.a.toFixed(2)})`;

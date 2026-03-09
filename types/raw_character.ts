@@ -1,9 +1,11 @@
-export type RawCharacter = {
+import { ElementType, WeaponType } from "~/types/common";
+
+export type Character = {
     name: string,
     icon: string,
     splash: string,
-    element: 'pyro' | 'hydro' | 'anemo' | 'electro' | 'dendro' | 'cryo' | 'geo',
-    weapon: 'sword' | 'claymore' | 'polearm' | 'bow' | 'catalyst',
+    element: ElementType,
+    weapon: WeaponType,
     star: 4 | 5,
     info: {
         title: string,
@@ -23,7 +25,6 @@ export type RawCharacter = {
         title: string,
         icon: string,
         description: string,
-        sub_description: string | null,
         details: string[] | null,
         params: Record<string, number[]> | null,
     }[],
@@ -60,5 +61,5 @@ export type RawCharacter = {
         title: string,
         image: string,
         description: string | null,
-    }[]
+    }[],
 };
