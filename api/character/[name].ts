@@ -64,11 +64,23 @@ export default defineEventHandler(async (event) => {
         };
 
         let links: Record<string, number> = {}, count = 0;
+        let params: Record<number, Record<string, number>> = {};
         for (let skill of rawdata.skills) {
             if (skill.id) links[`S${skill.id}`] = ++count;
+
+            if (skill.sub_ids && skill.params) {
+                for (let i = 0; i < 15; i++) {
+                    params[skill.sub_ids[i] as number] = {};
+                    for (let key in skill.params) {
+                        (params[skill.sub_ids[i] as number] as any)[key] = (skill.params as any)[key][i] as number;
+                    }
+                }
+            }
         }
         for (let talent of rawdata.talents) {
             if (talent.id) links[`P${talent.id}`] = ++count;
+
+            params[talent.id] = talent.params || {};
         }
         for (let constellation of rawdata.constellations) {
             if (constellation.id) links[`T${constellation.id}`] = ++count;
@@ -117,6 +129,21 @@ export default defineEventHandler(async (event) => {
                 /{LINK#([A-Z0-9]+)}([^{}]+){\/LINK}/g,
                 (_match, id, content) => {
                     return `<span class="linked_content" data-id="${links[id]}">${content}</span>`;
+                }
+            );
+            text = text.replace(
+                /{PARAM#P([0-9]+)\|([0-9]+)S([0-9]+)}/g,
+                (_match, id, index, ratio) => {
+                    if (!params[id]) {
+                        console.error(`Parameter ${id} not found in params.`);
+                        return '';
+                    }
+                    let ref = params[id][`param${index}`];
+                    if (ref == undefined) {
+                        console.error(`Parameter param${index} not found in params[${id}].`);
+                        return '';
+                    }
+                    return (ref * ratio).toString();
                 }
             );
             return process_text(text, settings, t);

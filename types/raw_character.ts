@@ -22,6 +22,7 @@ export type Character = {
     },
     skills: {
         id: number,
+        sub_ids: number[] | null,
         title: string,
         icon: string,
         description: string,
@@ -34,6 +35,7 @@ export type Character = {
         icon: string | null,
         description: string,
         unlock_ascension: number,
+        params: Record<string, number> | null,
     }[],
     constellations: {
         id: number,
