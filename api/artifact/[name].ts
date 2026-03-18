@@ -3,24 +3,6 @@ import type { Artifact, ArtifactItem } from '~/types/artifact';
 import type { Settings } from '~/types/settings';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
-import { round, round_string } from '#server/utils/value';
-
-function get_artifact_stats_list(val: Record<number, string>[]): Record<number, string>[] {
-    for (let row of val) {
-        for (let key in row) {
-            if (row[key]) row[key] = round_string(row[key], 0);
-        }
-    }
-    return val;
-}
-function get_artifact_substats_list(val: Record<number, string>[]): Record<number, string>[] {
-    for (let row of val) {
-        for (let key in row) {
-            if (row[key]) row[key] = round_string(row[key], 1);
-        }
-    }
-    return val;
-}
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event)
