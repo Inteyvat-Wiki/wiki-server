@@ -74,6 +74,11 @@ export default defineEventHandler(async (event) => {
             effect: get_weapon_effect(),
             description: process_text(rawdata.description, settings, t),
             story: process_text(rawdata.story, settings, t),
+            refine_material: rawdata.refine_material ? {
+                name: rawdata.refine_material.name,
+                icon: rawdata.refine_material.icon,
+                description: process_text(rawdata.refine_material.description, settings, t),
+            } : null
         };
 
         return res;

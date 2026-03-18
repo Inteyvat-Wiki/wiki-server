@@ -18,4 +18,9 @@ export type Weapon = {
     } | null,
     description: string,
     story: string,
+    refine_material: {
+        name: string,
+        icon: string,
+        description: string,
+    } | null,
 };
