@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
             stats: {
                 base: get_weapon_stats_list(rawdata.stats.base),
                 substats_name: rawdata.stats.substats_name,
-                substats: get_weapon_substats_list(rawdata.stats.substats),
+                substats: get_weapon_substats_list(rawdata.stats.substats || []),
             },
             effect: get_weapon_effect(),
             description: process_text(rawdata.description, settings, t),

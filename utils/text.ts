@@ -1,8 +1,9 @@
 import { Settings } from "~/types/settings";
 import { convertDarkHexToLightRGBA } from '#server/utils/color';
 
-export function process_text(text: string, settings: Settings, t: Function): string {
-    if (!text) return text;
+export function process_text<ty extends string | null>(_text: ty, settings: Settings, t: Function): ty {
+    if (!_text) return _text;
+    let text: string = _text as string;
 
     text = text.replace(/\n/g, '<br>');
     text = text.replace(
@@ -36,5 +37,5 @@ export function process_text(text: string, settings: Settings, t: Function): str
         }
     );
 
-    return text;
+    return text as ty;
 }
