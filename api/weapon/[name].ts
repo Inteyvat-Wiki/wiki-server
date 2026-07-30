@@ -1,4 +1,6 @@
 import { read, read_lang } from '#server/utils/read';
+import { get_lang } from '#server/utils/lang';
+import type { LocaleCode } from '~~/shared/i18n';
 import type { Weapon } from '~/types/weapon';
 import type { Weapon as RawWeapon } from '#server/types/raw_weapon';
 import type { Settings } from '~/types/settings';
@@ -24,9 +26,8 @@ function get_weapon_substats_list(val: Record<number, string>[]): Record<number,
 }
 
 export default defineEventHandler(async (event) => {
-    const query = getQuery(event)
-
-    const lang = (query.lang || 'zh_cn') as string;
+    const lang: LocaleCode = get_lang(event);
+    const query = getQuery(event);
     const t = create_i18n(lang).global.t;
     const settings = JSON.parse(query.settings as string || '{}') as Settings;
 

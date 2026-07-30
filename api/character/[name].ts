@@ -1,4 +1,6 @@
 import { read, read_lang } from '#server/utils/read';
+import { get_lang } from '#server/utils/lang';
+import type { LocaleCode } from '~~/shared/i18n';
 import type { Character } from '~/types/character';
 import type { Character as RawCharacter } from '#server/types/raw_character';
 import type { Settings } from '~/types/settings';
@@ -22,9 +24,8 @@ function get_character_substats_list(val: string[]): string[] {
 }
 
 export default defineEventHandler(async (event) => {
-    const query = getQuery(event)
-
-    const lang = (query.lang || 'zh_cn') as string;
+    const lang: LocaleCode = get_lang(event);
+    const query = getQuery(event);
     const t = create_i18n(lang).global.t;
     const settings = JSON.parse(query.settings as string || '{}') as Settings;
 

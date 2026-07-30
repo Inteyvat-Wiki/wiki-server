@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
+import type { LocaleCode } from '~~/shared/i18n'
 
 export async function read(file: string) {
     const path = fileURLToPath(new URL(`../../data/${file}.json`, import.meta.url))
@@ -15,7 +16,7 @@ export async function read(file: string) {
     }
 }
 
-export async function read_lang(file: string, lang: string) {
+export async function read_lang(file: string, lang: LocaleCode) {
     const path = fileURLToPath(new URL(`../../data/${lang}/${file}.json`, import.meta.url))
     try {
         const data = await readFile(path, 'utf-8');
