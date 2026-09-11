@@ -2,15 +2,15 @@ import { read, read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Geography } from '~/types/geography';
-import type { Settings } from '~/types/settings';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
+import { parse_settings } from '#server/utils/settings';
 
 export default defineEventHandler(async (event) => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string || '{}') as Settings;
+    const settings = parse_settings(query.settings);
 
     const name = event.context.params?.name;
 
@@ -35,13 +35,13 @@ export default defineEventHandler(async (event) => {
         const rawdata: Geography = await read_lang(`geography/${name}`, lang);
 
         let res: Geography = {
-            name: rawdata.name,
+            name: process_text(rawdata.name, settings, t),
             description: process_text(rawdata.description, settings, t),
             image: rawdata.image,
             type: rawdata.type,
             area: rawdata.area,
             tabs: rawdata.tabs.map(tab => ({
-                name: tab.name,
+                name: process_text(tab.name, settings, t),
                 description: process_text(tab.description, settings, t)
             }))
         };

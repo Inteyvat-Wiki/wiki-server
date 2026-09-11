@@ -1,12 +1,21 @@
-import { read, read_lang } from '#server/utils/read';
+import { read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
+import { create_i18n } from '#server/utils/i18n';
+import { parse_settings } from '#server/utils/settings';
+import { process_text } from '#server/utils/text';
 import type { LocaleCode } from '~~/shared/i18n';
+import type { LivingBeings } from '~/types/living_being';
 
 export default defineEventHandler(async (event) => {
     const lang: LocaleCode = get_lang(event);
     try {
-        const data = await read_lang('living_being/list', lang);
-        return data;
+        const t = create_i18n(lang).global.t;
+        const settings = parse_settings(getQuery(event).settings);
+        const data = await read_lang('living_being/list', lang) as LivingBeings;
+        return data.map(item => ({
+            ...item,
+            name: process_text(item.name, settings, t),
+        }));
     } catch (error) {
         console.error(error);
         throw createError({

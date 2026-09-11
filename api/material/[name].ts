@@ -2,15 +2,15 @@ import { read, read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Material } from '~/types/material';
-import type { Settings } from '~/types/settings';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
+import { parse_settings } from '#server/utils/settings';
 
 export default defineEventHandler(async (event) => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string || '{}') as Settings;
+    const settings = parse_settings(query.settings);
 
     const name = event.context.params?.name;
 
@@ -46,10 +46,10 @@ export default defineEventHandler(async (event) => {
             let res: Material = [];
             for (let data of rawdata) {
                 res.push({
-                    name: data.name,
+                    name: process_text(data.name, settings, t),
                     icon: data.icon,
                     star: data.star,
-                    type: data.type,
+                    type: process_text(data.type, settings, t),
                     info: data.info.map(item => ({
                         title: item.title,
                         description: process_text(item.description, settings, t),

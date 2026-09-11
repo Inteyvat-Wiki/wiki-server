@@ -3,9 +3,9 @@ import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Character } from '~/types/character';
 import type { Character as RawCharacter } from '#server/types/raw_character';
-import type { Settings } from '~/types/settings';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '#server/utils/text';
+import { parse_settings } from '#server/utils/settings';
 import { round, round_string } from '#server/utils/value';
 
 function get_character_stats_list(val: Record<number, string>[]): Record<number, string>[] {
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string || '{}') as Settings;
+    const settings = parse_settings(query.settings);
 
     const name = event.context.params?.name;
 
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
     try {
         const rawdata: RawCharacter = await read_lang(`character/${name}`, lang);
         let res: Character = {
-            name: rawdata.name,
+            name: process_text(rawdata.name, settings, t),
             icon: rawdata.icon,
             splash: rawdata.splash,
             element: rawdata.element,
@@ -120,7 +120,7 @@ export default defineEventHandler(async (event) => {
             }
 
             return {
-                title: title || '',
+                title: process_text(title || '', settings, t),
                 value: values,
             };
         }
@@ -161,7 +161,7 @@ export default defineEventHandler(async (event) => {
         for (let stat of rawdata.stats.substats) {
             const val = get_character_substats_list(stat.value);
             res.stats.substats.push({
-                name: stat.name,
+                name: process_text(stat.name, settings, t),
                 value: val,
             });
         }

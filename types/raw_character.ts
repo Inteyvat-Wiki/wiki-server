@@ -1,4 +1,4 @@
-import { ElementType, WeaponType } from "~/types/common";
+import type { ElementType, WeaponType } from "~/types/common";
 
 export type Character = {
     name: string,

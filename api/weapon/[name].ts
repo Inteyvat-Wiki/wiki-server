@@ -3,9 +3,9 @@ import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Weapon } from '~/types/weapon';
 import type { Weapon as RawWeapon } from '#server/types/raw_weapon';
-import type { Settings } from '~/types/settings';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
+import { parse_settings } from '#server/utils/settings';
 import { round, round_string } from '#server/utils/value';
 
 function get_weapon_stats_list(val: Record<number, string>[]): Record<number, string>[] {
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string || '{}') as Settings;
+    const settings = parse_settings(query.settings);
 
     const name = event.context.params?.name;
 
@@ -56,27 +56,27 @@ export default defineEventHandler(async (event) => {
             });
 
             return {
-                name: rawdata.effect.name,
+                name: process_text(rawdata.effect.name, settings, t),
                 description: process_text(description, settings, t),
             }
         }
 
         let res: Weapon = {
-            name: rawdata.name,
+            name: process_text(rawdata.name, settings, t),
             icon: rawdata.icon,
             awaken_icon: rawdata.awaken_icon,
             type: rawdata.type,
             star: rawdata.star,
             stats: {
                 base: get_weapon_stats_list(rawdata.stats.base),
-                substats_name: rawdata.stats.substats_name,
+                substats_name: process_text(rawdata.stats.substats_name, settings, t),
                 substats: get_weapon_substats_list(rawdata.stats.substats || []),
             },
             effect: get_weapon_effect(),
             description: process_text(rawdata.description, settings, t),
             story: process_text(rawdata.story, settings, t),
             refine_material: rawdata.refine_material ? {
-                name: rawdata.refine_material.name,
+                name: process_text(rawdata.refine_material.name, settings, t),
                 icon: rawdata.refine_material.icon,
                 description: process_text(rawdata.refine_material.description, settings, t),
             } : null

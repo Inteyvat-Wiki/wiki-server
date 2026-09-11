@@ -1,16 +1,9 @@
 import { read, read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
-import type { LocaleCode } from '~~/shared/i18n';
 import type { Mapback } from '~/types/map';
-import type { Settings } from '~/types/settings';
-import { create_i18n } from '#server/utils/i18n';
-import { process_text } from '~~/server/utils/text';
 
 export default defineEventHandler(async (event) => {
-    const lang: LocaleCode = get_lang(event);
-    const query = getQuery(event);
-    const t = create_i18n(lang).global.t;
-    const settings = JSON.parse(query.settings as string || '{}') as Settings;
+    const lang = get_lang(event);
 
     const name = event.context.params?.name;
 
@@ -30,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
         for (let item of rawdata.images) {
             res.images.push({
-                name: process_text(item.name, settings, t),
+                name: item.name,
                 image: item.image,
                 coordinate: item.coordinate,
                 z_index: item.z_index,
