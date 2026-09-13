@@ -3,7 +3,7 @@ import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Material } from '~/types/material';
 import { create_i18n } from '#server/utils/i18n';
-import { process_text } from '~~/server/utils/text';
+import { process_item_common } from '~~/server/utils/item';
 import { parse_settings } from '#server/utils/settings';
 
 export default defineEventHandler(async (event) => {
@@ -45,18 +45,7 @@ export default defineEventHandler(async (event) => {
 
             let res: Material = [];
             for (let data of rawdata) {
-                res.push({
-                    name: process_text(data.name, settings, t),
-                    icon: data.icon,
-                    star: data.star,
-                    type: process_text(data.type, settings, t),
-                    info: data.info.map(item => ({
-                        title: item.title,
-                        description: process_text(item.description, settings, t),
-                    })),
-                    effect: data.effect ? process_text(data.effect, settings, t) : null,
-                    description_full: data.description_full ? process_text(data.description_full, settings, t) : null,
-                })
+                res.push(process_item_common(data, settings, t));
             }
 
             return res;
