@@ -4,7 +4,7 @@ import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '#server/utils/text';
 import { parse_settings } from '#server/utils/settings';
 import { is_task_id } from '#server/utils/travel_log';
-import type { Task } from '~/types/travel_log';
+import type { Task, TaskOperation } from '~/types/travel_log';
 
 export default defineEventHandler(async (event) => {
     const id = event.context.params?.name;
@@ -20,18 +20,34 @@ export default defineEventHandler(async (event) => {
         const t = create_i18n(lang).global.t;
         const settings = parse_settings(getQuery(event).settings);
         const task = await read_lang(`task/${id}`, lang) as Task;
+        function process_operations(operations: TaskOperation[] = []): TaskOperation[] {
+            return operations.map(operation => operation.type !== 'item' ? operation : {
+                ...operation,
+                items: operation.items.map(item => ({
+                    ...item,
+                    ...(item.name ? { name: process_text(item.name, settings, t) } : {}),
+                })),
+                ...(operation.choices ? { choices: operation.choices.map(item => ({
+                    ...item,
+                    ...(item.name ? { name: process_text(item.name, settings, t) } : {}),
+                })) } : {}),
+            });
+        }
         return {
             ...task,
+            ...(task.operations ? { operations: process_operations(task.operations) } : {}),
             name: process_text(task.name, settings, t),
             description: process_text(task.description, settings, t),
             unlock_description: process_text(task.unlock_description, settings, t),
             chapter: process_text(task.chapter, settings, t),
             steps: Object.fromEntries(Object.entries(task.steps).map(([key, step]) => [key, {
                 ...step,
+                ...(step.operations ? { operations: process_operations(step.operations) } : {}),
                 description: process_text(step.description, settings, t),
             }])),
             talks: Object.fromEntries(Object.entries(task.talks).map(([key, talk]) => [key, {
                 ...talk,
+                ...(talk.operations ? { operations: process_operations(talk.operations) } : {}),
                 // 条件对象的标题和副标题可能包含任务/步骤的 TextMap 文本；运算符和结构字段保持原样。
                 conditions: talk.conditions.map(condition => typeof condition === 'string'
                     ? condition
@@ -43,6 +59,7 @@ export default defineEventHandler(async (event) => {
                 objects: talk.objects.map(object => process_text(object, settings, t)),
                 dialogs: Object.fromEntries(Object.entries(talk.dialogs).map(([dialog_key, dialog]) => [dialog_key, {
                     ...dialog,
+                    ...(dialog.operations ? { operations: process_operations(dialog.operations) } : {}),
                     content: process_text(dialog.content, settings, t),
                     ...(dialog.speaker ? { speaker: process_text(dialog.speaker, settings, t) } : {}),
                     ...(dialog.speaker_subtitle
