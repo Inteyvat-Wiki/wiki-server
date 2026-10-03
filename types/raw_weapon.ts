@@ -17,7 +17,7 @@ export type Weapon = {
         values: string[][],
     } | null,
     description: string,
-    story: string,
+    story: string[],
     refine_material: {
         name: string,
         icon: string,
