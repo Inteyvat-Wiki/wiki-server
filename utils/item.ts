@@ -2,7 +2,7 @@ import type { ItemCommon } from '@/types/common';
 
 export function process_item_common<ItemTypes extends string | null>(item: ItemCommon<ItemTypes>, settings: any, t: any): ItemCommon<ItemTypes> {
     return {
-        name: item.name,
+        name: process_text(item.name, settings, t),
         icon: item.icon,
         star: item.star,
         type: item.type,

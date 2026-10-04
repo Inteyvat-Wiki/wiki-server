@@ -1,25 +1,18 @@
-import { read_lang } from '#server/utils/read';
+import { isError } from 'h3';
+import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '#server/utils/text';
 import { parse_settings } from '#server/utils/settings';
-import { is_task_id } from '#server/utils/travel_log';
 import type { Task, TaskOperation } from '~/types/travel_log';
 
 export default defineEventHandler(async (event) => {
     const id = event.context.params?.name;
-    if (typeof id !== 'string' || !await is_task_id(id)) {
-        throw createError({
-            statusCode: 400,
-            message: 'Invalid task name',
-        });
-    }
-
     try {
         const lang = get_lang(event);
         const t = create_i18n(lang).global.t;
         const settings = parse_settings(getQuery(event).settings);
-        const task = await read_lang(`task/${id}`, lang) as Task;
+        const task = await read_object<Task>('task', id, lang);
         function process_operations(operations: TaskOperation[] = []): TaskOperation[] {
             return operations.map(operation => operation.type !== 'item' ? operation : {
                 ...operation,
@@ -69,6 +62,7 @@ export default defineEventHandler(async (event) => {
             }])),
         } satisfies Task;
     } catch (error) {
+        if (isError(error)) throw error;
         console.error(error);
         throw createError({
             statusCode: 500,

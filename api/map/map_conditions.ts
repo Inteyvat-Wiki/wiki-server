@@ -1,4 +1,4 @@
-import { read, read_lang } from '#server/utils/read';
+import { read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 

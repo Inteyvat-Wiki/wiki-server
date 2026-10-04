@@ -1,4 +1,5 @@
-import { read, read_lang } from '#server/utils/read';
+import { isError } from 'h3';
+import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Character } from '~/types/character';
@@ -31,16 +32,8 @@ export default defineEventHandler(async (event) => {
 
     const name = event.context.params?.name;
 
-    const character_list = await read('characters');
-    if (typeof (name) !== 'string' || !character_list.includes(name)) {
-        throw createError({
-            statusCode: 400,
-            message: 'Invalid character name'
-        });
-    }
-
     try {
-        const rawdata: RawCharacter = await read_lang(`character/${name}`, lang);
+        const rawdata: RawCharacter = await read_object('character', name, lang);
         let res: Character = {
             name: process_text(rawdata.name, settings, t),
             icon: rawdata.icon,
@@ -266,6 +259,7 @@ export default defineEventHandler(async (event) => {
         return res;
 
     } catch (error) {
+        if (isError(error)) throw error;
         console.error(error);
         throw createError({
             statusCode: 500,

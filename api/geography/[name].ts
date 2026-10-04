@@ -1,4 +1,5 @@
-import { read, read_lang } from '#server/utils/read';
+import { isError } from 'h3';
+import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Geography } from '~/types/geography';
@@ -14,25 +15,8 @@ export default defineEventHandler(async (event) => {
 
     const name = event.context.params?.name;
 
-    const geography_list = await read('geographies');
-    if (typeof (name) !== 'string' || !(() => {
-        for (let type in geography_list) {
-            for (let area in geography_list[type]) {
-                if (geography_list[type][area].includes(name)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    })()) {
-        throw createError({
-            statusCode: 400,
-            message: 'Invalid geography name'
-        });
-    }
-
     try {
-        const rawdata: Geography = await read_lang(`geography/${name}`, lang);
+        const rawdata: Geography = await read_object('geography', name, lang);
 
         let res: Geography = {
             name: process_text(rawdata.name, settings, t),
@@ -49,6 +33,7 @@ export default defineEventHandler(async (event) => {
         return res;
 
     } catch (error) {
+        if (isError(error)) throw error;
         console.error(error);
         throw createError({
             statusCode: 500,

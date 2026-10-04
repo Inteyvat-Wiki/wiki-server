@@ -1,4 +1,5 @@
-import { read, read_lang } from '#server/utils/read';
+import { isError } from 'h3';
+import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Weapon } from '~/types/weapon';
@@ -33,16 +34,8 @@ export default defineEventHandler(async (event) => {
 
     const name = event.context.params?.name;
 
-    const weapon_list = await read('weapons');
-    if (typeof (name) !== 'string' || !weapon_list.includes(name)) {
-        throw createError({
-            statusCode: 400,
-            message: 'Invalid weapon name'
-        });
-    }
-
     try {
-        const rawdata: RawWeapon = await read_lang(`weapon/${name}`, lang);
+        const rawdata: RawWeapon = await read_object('weapon', name, lang);
 
         function get_weapon_effect() {
             if (!rawdata.effect) return null;
@@ -85,6 +78,7 @@ export default defineEventHandler(async (event) => {
         return res;
 
     } catch (error) {
+        if (isError(error)) throw error;
         console.error(error);
         throw createError({
             statusCode: 500,

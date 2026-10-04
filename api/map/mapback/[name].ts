@@ -1,4 +1,4 @@
-import { read, read_lang } from '#server/utils/read';
+import { read_common, read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
 import type { Mapback } from '~/types/map';
 
@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
     const name = event.context.params?.name;
 
-    const map_list = await read('maps');
+    const map_list = await read_common('maps');
     if (typeof (name) !== 'string' || !map_list[name]) {
         throw createError({
             statusCode: 400,

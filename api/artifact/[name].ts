@@ -1,4 +1,5 @@
-import { read, read_lang } from '#server/utils/read';
+import { isError } from 'h3';
+import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Artifact, ArtifactItem } from '~/types/artifact';
@@ -14,16 +15,8 @@ export default defineEventHandler(async (event) => {
 
     const name = event.context.params?.name;
 
-    const artifact_list = await read('artifacts');
-    if (typeof (name) !== 'string' || !artifact_list.includes(name)) {
-        throw createError({
-            statusCode: 400,
-            message: 'Invalid artifact name'
-        });
-    }
-
     try {
-        const rawdata: Artifact = await read_lang(`artifact/${name}`, lang);
+        const rawdata: Artifact = await read_object('artifact', name, lang);
 
         function get_artifact_item<T extends ArtifactItem | (ArtifactItem | null)>(item: T): T {
             if (!item) return item;
@@ -56,6 +49,7 @@ export default defineEventHandler(async (event) => {
         return res;
 
     } catch (error) {
+        if (isError(error)) throw error;
         console.error(error);
         throw createError({
             statusCode: 500,

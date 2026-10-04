@@ -1,10 +1,10 @@
-import { read, read_lang } from '#server/utils/read';
+import { read_common } from '#server/utils/read';
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event)
 
     try {
-        const data = await read('menu');
+        const data = await read_common('menu');
         return data;
     } catch (error) {
         console.error(error);

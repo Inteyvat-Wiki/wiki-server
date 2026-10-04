@@ -2,8 +2,8 @@ import { readFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import type { LocaleCode } from '~~/shared/i18n'
 
-export async function read(file: string) {
-    const path = fileURLToPath(new URL(`../../data/${file}.json`, import.meta.url))
+export async function read_common(file: string) {
+    const path = fileURLToPath(new URL(`../../data/common/${file}.json`, import.meta.url))
     try {
         const data = await readFile(path, 'utf-8');
         return JSON.parse(data);

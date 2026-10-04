@@ -1,4 +1,4 @@
-import { read, read_lang } from '#server/utils/read';
+import { read_common, read_lang } from '#server/utils/read';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
 import type { Maplayer } from '~/types/map';
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
     
     const name = event.context.params?.name;
 
-    const maps = await read('maps');
+    const maps = await read_common('maps');
     const region = (() => {
         for (let region in maps) {
             if (maps[region].includes(name as string)) {
