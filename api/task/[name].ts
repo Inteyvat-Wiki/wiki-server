@@ -37,6 +37,12 @@ export default defineEventHandler(async (event) => {
                 ...step,
                 ...(step.operations ? { operations: process_operations(step.operations) } : {}),
                 description: process_text(step.description, settings, t),
+                finish_conditions: step.finish_conditions.map(condition => typeof condition === 'string'
+                    || condition.type === 'talk' ? condition : {
+                        ...condition,
+                        title: process_text(condition.title, settings, t),
+                        subtitle: process_text(condition.subtitle, settings, t),
+                    }),
             }])),
             talks: Object.fromEntries(Object.entries(task.talks).map(([key, talk]) => [key, {
                 ...talk,
