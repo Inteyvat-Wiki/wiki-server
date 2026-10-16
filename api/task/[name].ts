@@ -33,11 +33,26 @@ export default defineEventHandler(async (event) => {
             description: process_text(task.description, settings, t),
             unlock_description: process_text(task.unlock_description, settings, t),
             chapter: process_text(task.chapter, settings, t),
+            narrations: Object.fromEntries(Object.entries(task.narrations || {}).map(([key, narration]) => [key, {
+                ...narration,
+                dialogs: Object.fromEntries(Object.entries(narration.dialogs).map(([key, dialog]) => [key, {
+                    ...dialog,
+                    content: process_text(dialog.content, settings, t),
+                    ...(dialog.speaker ? { speaker: process_text(dialog.speaker, settings, t) } : {}),
+                    ...(dialog.speaker_subtitle ? { speaker_subtitle: process_text(dialog.speaker_subtitle, settings, t) } : {}),
+                }])),
+            }])),
             steps: Object.fromEntries(Object.entries(task.steps).map(([key, step]) => [key, {
                 ...step,
                 ...(step.operations ? { operations: process_operations(step.operations) } : {}),
                 description: process_text(step.description, settings, t),
                 finish_conditions: step.finish_conditions.map(condition => typeof condition === 'string'
+                    || condition.type === 'talk' ? condition : {
+                        ...condition,
+                        title: process_text(condition.title, settings, t),
+                        subtitle: process_text(condition.subtitle, settings, t),
+                    }),
+                fail_conditions: (step.fail_conditions || []).map(condition => typeof condition === 'string'
                     || condition.type === 'talk' ? condition : {
                         ...condition,
                         title: process_text(condition.title, settings, t),
