@@ -4,7 +4,8 @@ import { get_lang } from '#server/utils/lang';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '#server/utils/text';
 import { parse_settings } from '#server/utils/settings';
-import type { Task, TaskOperation } from '~/types/travel_log';
+import { create_dialogue_processor } from '#server/utils/dialogue';
+import type { Task } from '~/types/travel_log';
 
 export default defineEventHandler(async (event) => {
     const id = event.context.params?.name;
@@ -13,74 +14,26 @@ export default defineEventHandler(async (event) => {
         const t = create_i18n(lang).global.t;
         const settings = parse_settings(getQuery(event).settings);
         const task = await read_object<Task>('task', id, lang);
-        function process_operations(operations: TaskOperation[] = []): TaskOperation[] {
-            return operations.map(operation => operation.type !== 'item' ? operation : {
-                ...operation,
-                items: operation.items.map(item => ({
-                    ...item,
-                    ...(item.name ? { name: process_text(item.name, settings, t) } : {}),
-                })),
-                ...(operation.choices ? { choices: operation.choices.map(item => ({
-                    ...item,
-                    ...(item.name ? { name: process_text(item.name, settings, t) } : {}),
-                })) } : {}),
-            });
-        }
+        const process = create_dialogue_processor(settings, t);
         return {
             ...task,
-            ...(task.operations ? { operations: process_operations(task.operations) } : {}),
+            ...(task.operations ? { operations: process.operations(task.operations) } : {}),
             name: process_text(task.name, settings, t),
             description: process_text(task.description, settings, t),
             unlock_description: process_text(task.unlock_description, settings, t),
             chapter: process_text(task.chapter, settings, t),
             narrations: Object.fromEntries(Object.entries(task.narrations || {}).map(([key, narration]) => [key, {
                 ...narration,
-                dialogs: Object.fromEntries(Object.entries(narration.dialogs).map(([key, dialog]) => [key, {
-                    ...dialog,
-                    content: process_text(dialog.content, settings, t),
-                    ...(dialog.speaker ? { speaker: process_text(dialog.speaker, settings, t) } : {}),
-                    ...(dialog.speaker_subtitle ? { speaker_subtitle: process_text(dialog.speaker_subtitle, settings, t) } : {}),
-                }])),
+                dialogs: process.dialogs(narration.dialogs),
             }])),
             steps: Object.fromEntries(Object.entries(task.steps).map(([key, step]) => [key, {
                 ...step,
-                ...(step.operations ? { operations: process_operations(step.operations) } : {}),
+                ...(step.operations ? { operations: process.operations(step.operations) } : {}),
                 description: process_text(step.description, settings, t),
-                finish_conditions: step.finish_conditions.map(condition => typeof condition === 'string'
-                    || condition.type === 'talk' ? condition : {
-                        ...condition,
-                        title: process_text(condition.title, settings, t),
-                        subtitle: process_text(condition.subtitle, settings, t),
-                    }),
-                fail_conditions: (step.fail_conditions || []).map(condition => typeof condition === 'string'
-                    || condition.type === 'talk' ? condition : {
-                        ...condition,
-                        title: process_text(condition.title, settings, t),
-                        subtitle: process_text(condition.subtitle, settings, t),
-                    }),
+                finish_conditions: process.conditions(step.finish_conditions),
+                fail_conditions: process.conditions(step.fail_conditions || []),
             }])),
-            talks: Object.fromEntries(Object.entries(task.talks).map(([key, talk]) => [key, {
-                ...talk,
-                ...(talk.operations ? { operations: process_operations(talk.operations) } : {}),
-                // 条件对象的标题和副标题可能包含任务/步骤的 TextMap 文本；运算符和结构字段保持原样。
-                conditions: talk.conditions.map(condition => typeof condition === 'string'
-                    ? condition
-                    : {
-                        ...condition,
-                        title: process_text(condition.title, settings, t),
-                        subtitle: process_text(condition.subtitle, settings, t),
-                    }),
-                objects: talk.objects.map(object => process_text(object, settings, t)),
-                dialogs: Object.fromEntries(Object.entries(talk.dialogs).map(([dialog_key, dialog]) => [dialog_key, {
-                    ...dialog,
-                    ...(dialog.operations ? { operations: process_operations(dialog.operations) } : {}),
-                    content: process_text(dialog.content, settings, t),
-                    ...(dialog.speaker ? { speaker: process_text(dialog.speaker, settings, t) } : {}),
-                    ...(dialog.speaker_subtitle
-                        ? { speaker_subtitle: process_text(dialog.speaker_subtitle, settings, t) }
-                        : {}),
-                }])),
-            }])),
+            talks: Object.fromEntries(Object.entries(task.talks).map(([key, talk]) => [key, process.talk(talk)])),
         } satisfies Task;
     } catch (error) {
         if (isError(error)) throw error;
