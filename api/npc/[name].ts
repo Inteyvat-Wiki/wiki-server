@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
     return {
         ...npc,
         name: process.text(npc.name),
+        ...(npc.title ? { title: process.text(npc.title) } : {}),
         talks: Object.fromEntries(Object.entries(npc.talks).map(([key, talk]) => [key, {
             ...process.talk(talk), title: process.text(talk.title),
         }])),
