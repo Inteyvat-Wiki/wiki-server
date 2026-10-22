@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
             description: process_text(task.description, settings, t),
             unlock_description: process_text(task.unlock_description, settings, t),
             chapter: process_text(task.chapter, settings, t),
+            bubbles: Object.fromEntries(Object.entries(task.bubbles || {}).map(([key, bubble]) => [key, process.bubble(bubble)])),
             narrations: Object.fromEntries(Object.entries(task.narrations || {}).map(([key, narration]) => [key, {
                 ...narration,
                 dialogs: process.dialogs(narration.dialogs),

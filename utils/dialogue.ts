@@ -1,6 +1,6 @@
 import { process_text } from '#server/utils/text';
 import type { Settings } from '~/types/settings';
-import type { TaskConditionToken, TaskDialog, TaskFinishConditionToken, TaskOperation, TaskTalk } from '~/types/travel_log';
+import type { TaskBubble, TaskConditionToken, TaskDialog, TaskFinishConditionToken, TaskOperation, TaskTalk } from '~/types/travel_log';
 
 export function create_dialogue_processor(settings: Settings, t: Function) {
     const text = (value: string) => process_text(value, settings, t);
@@ -48,5 +48,9 @@ export function create_dialogue_processor(settings: Settings, t: Function) {
             ...(value.operations ? { operations: operations(value.operations) } : {}),
         };
     }
-    return { text, conditions, operations, dialogs, talk };
+    function bubble<T extends TaskBubble>(value: T): T {
+        return { ...value, conditions: conditions(value.conditions),
+            ...(value.dialog ? { dialog: dialogs({ 1: value.dialog })[1]! } : {}) };
+    }
+    return { text, conditions, operations, dialogs, talk, bubble };
 }

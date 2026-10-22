@@ -5,7 +5,8 @@ import type { PageDataTrait } from '~/types/common';
 const indexes = new Map<string, Promise<Set<string>>>();
 
 export async function is_data_id(category: string, id: unknown): Promise<boolean> {
-    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) return false;
+    // Version IDs such as quest-v1.x are valid; empty dot segments and path characters are not.
+    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/.test(id)) return false;
     let loading = indexes.get(category);
     if (!loading) {
         loading = read_common(`${category}/ids`).then((data: unknown) => {
