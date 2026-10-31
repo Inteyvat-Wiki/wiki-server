@@ -2,8 +2,8 @@ import { process_text } from '#server/utils/text';
 import type { Settings } from '~/types/settings';
 import type { TaskBubble, TaskConditionToken, TaskDialog, TaskFinishConditionToken, TaskOperation, TaskTalk } from '~/types/travel_log';
 
-export function create_dialogue_processor(settings: Settings, t: Function) {
-    const text = (value: string) => process_text(value, settings, t);
+export function create_dialogue_processor(settings: Settings, t: Function,
+    text: (value: string) => string = value => process_text(value, settings, t)) {
     function conditions<T extends TaskFinishConditionToken>(tokens: T[]): T[] {
         return tokens.map(token => {
             if (typeof token === 'string' || token.type === 'talk') return token;

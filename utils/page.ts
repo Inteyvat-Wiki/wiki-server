@@ -24,6 +24,15 @@ export async function is_data_id(category: string, id: unknown): Promise<boolean
 }
 
 export async function read_object<T>(category: string, id: unknown, lang: LocaleCode): Promise<T> {
+    if (typeof id === 'string' && /^[a-zA-Z0-9_-]+$/.test(id)
+        && ['serenitea', 'tcg', 'miliastra', 'misc'].includes(category) && !await is_data_id(category, id)) {
+        const sources = await read_common(`${category}/source_ids`);
+        if (sources && typeof sources === 'object' && Object.hasOwn(sources, id)) id = sources[id];
+        else {
+            const aliases = await read_common(`${category}/id_aliases`);
+            if (aliases && typeof aliases === 'object' && Object.hasOwn(aliases, id)) id = aliases[id];
+        }
+    }
     if (!await is_data_id(category, id)) {
         throw createError({ statusCode: 404, message: `Unknown ${category} data ID` });
     }
