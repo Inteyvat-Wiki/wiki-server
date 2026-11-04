@@ -1,14 +1,14 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import { create_i18n } from '#server/utils/i18n';
 import { parse_settings } from '#server/utils/settings';
 import { process_item_common } from '#server/utils/item';
-import type { LivingBeing } from '~/types/living_being';
 
-export default defineEventHandler(async event => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'living_being'>> => {
     const lang = get_lang(event);
     const t = create_i18n(lang).global.t;
     const settings = parse_settings(getQuery(event).settings);
-    const data = await read_object<LivingBeing>('living_being', event.context.params?.name, lang);
+    const data = await read_object('living_being', event.context.params?.name, lang);
     return process_item_common(data, settings, t);
 });

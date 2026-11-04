@@ -1,44 +1,44 @@
 import { read_common, read_lang } from '#server/utils/read';
 import type { LocaleCode } from '~~/shared/i18n';
-import type { PageDataTrait } from '~/types/common';
+import type { ContentCategory, ExportDocument, ContentPages } from '@inteyvat-wiki/wiki-contracts/registry';
+import { assert_content_category, accept_export_document, accept_content_pages, parse_id_index, parse_id_aliases } from './content_boundary';
 
-const indexes = new Map<string, Promise<Set<string>>>();
+import { isWikiId } from '@inteyvat-wiki/wiki-contracts/ids';
 
-export async function is_data_id(category: string, id: unknown): Promise<boolean> {
-    // Version IDs such as quest-v1.x are valid; empty dot segments and path characters are not.
-    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/.test(id)) return false;
-    let loading = indexes.get(category);
-    if (!loading) {
-        loading = read_common(`${category}/ids`).then((data: unknown) => {
-            if (!Array.isArray(data) || data.some(value => typeof value !== 'string')) {
-                throw new Error(`Invalid data ID index: ${category}`);
-            }
-            return new Set<string>(data);
-        }).catch(error => {
-            indexes.delete(category);
-            throw error;
-        });
-        indexes.set(category, loading);
-    }
-    return (await loading).has(id);
+async function read_id_index(category: ContentCategory): Promise<Set<string>> {
+    // Data can be replaced without restarting the server; keep snapshots local to each read.
+    return parse_id_index(await read_common(`${category}/ids`));
 }
 
-export async function read_object<T>(category: string, id: unknown, lang: LocaleCode): Promise<T> {
-    if (typeof id === 'string' && /^[a-zA-Z0-9_-]+$/.test(id)
-        && ['serenitea', 'tcg', 'miliastra', 'misc'].includes(category) && !await is_data_id(category, id)) {
-        const sources = await read_common(`${category}/source_ids`);
+export async function is_data_id(category: ContentCategory, id: unknown): Promise<boolean> {
+    assert_content_category(category);
+    // Version IDs such as quest-v1.x are valid; empty dot segments and path characters are not.
+    if (!isWikiId(id)) return false;
+    return (await read_id_index(category)).has(id);
+}
+
+export async function read_object<C extends ContentCategory>(category: C, id: unknown, lang: LocaleCode): Promise<ExportDocument<C>> {
+    assert_content_category(category);
+    if (!isWikiId(id)) {
+        throw createError({ statusCode: 404, message: `Unknown ${category} data ID` });
+    }
+    const ids = await read_id_index(category);
+    if (/^[a-zA-Z0-9_-]+$/.test(id)
+        && ['serenitea', 'tcg', 'miliastra', 'misc'].includes(category) && !ids.has(id)) {
+        const sources = parse_id_aliases(await read_common(`${category}/source_ids`));
         if (sources && typeof sources === 'object' && Object.hasOwn(sources, id)) id = sources[id];
         else {
-            const aliases = await read_common(`${category}/id_aliases`);
+            const aliases = parse_id_aliases(await read_common(`${category}/id_aliases`));
             if (aliases && typeof aliases === 'object' && Object.hasOwn(aliases, id)) id = aliases[id];
         }
     }
-    if (!await is_data_id(category, id)) {
+    if (typeof id !== 'string' || !ids.has(id)) {
         throw createError({ statusCode: 404, message: `Unknown ${category} data ID` });
     }
-    return await read_lang(`${category}/items/${id}`, lang) as T;
+    return accept_export_document(category, await read_lang(`${category}/items/${id}`, lang));
 }
 
-export async function read_pages<T extends PageDataTrait>(category: string, lang: LocaleCode): Promise<T[]> {
-    return await read_lang(`${category}/pages`, lang) as T[];
+export async function read_pages<C extends ContentCategory>(category: C, lang: LocaleCode): Promise<ContentPages<C>> {
+    assert_content_category(category);
+    return accept_content_pages(category, await read_lang(`${category}/pages`, lang));
 }

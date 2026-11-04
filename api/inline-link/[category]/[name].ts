@@ -1,15 +1,16 @@
-import { INLINE_LINK_CATEGORIES, is_inline_link_category, is_inline_link_id } from '~~/shared/inline_link';
+import { INLINE_LINK_CATEGORIES, is_inline_link_category, is_inline_link_id } from '@inteyvat-wiki/wiki-contracts/inline_link';
+import type { InlineLinkInfo } from '@inteyvat-wiki/wiki-contracts/inline_link';
 import { read_pages } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '#server/utils/text';
 import { parse_settings } from '#server/utils/settings';
-import type { PageDataTrait } from '~/types/common';
+import type { PageDataTrait } from '@inteyvat-wiki/wiki-contracts/common';
 import { create_archive_text_processor } from '#server/utils/archive_text';
 
 const summaries = new Map<string, Promise<Map<string, PageDataTrait>>>();
 
-export default defineEventHandler(async event => {
+export default defineEventHandler(async (event): Promise<InlineLinkInfo> => {
     const category = event.context.params?.category || '';
     const id = event.context.params?.name || '';
     if (!is_inline_link_category(category) || !is_inline_link_id(id)) {
@@ -20,7 +21,7 @@ export default defineEventHandler(async event => {
     const key = `${lang}/${folder}`;
     let loading = summaries.get(key);
     if (!loading) {
-        loading = read_pages<PageDataTrait>(folder, lang)
+        loading = read_pages(folder, lang)
             .then(pages => new Map(pages.map(page => [page.id, page])))
             .catch(error => {
                 summaries.delete(key);
@@ -33,7 +34,7 @@ export default defineEventHandler(async event => {
     const t = create_i18n(lang).global.t;
     const settings = parse_settings(getQuery(event).settings);
     const name = page.name || (category === 'task' ? t('travel-log.hidden_task') : id);
-    const display_name = ['serenitea', 'tcg', 'miliastra', 'misc'].includes(category)
+    const display_name = ['serenitea', 'tcg', 'miliastra', 'misc', 'outfit'].includes(category)
         ? create_archive_text_processor(settings, t)(name)
         : category === 'chapter-group' ? name : process_text(name, settings, t);
     return {

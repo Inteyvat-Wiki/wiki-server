@@ -1,3 +1,4 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { isError } from 'h3';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
@@ -7,13 +8,13 @@ import { parse_settings } from '#server/utils/settings';
 import { create_dialogue_processor } from '#server/utils/dialogue';
 import type { Task } from '~/types/travel_log';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'task'>> => {
     const id = event.context.params?.name;
     try {
         const lang = get_lang(event);
         const t = create_i18n(lang).global.t;
         const settings = parse_settings(getQuery(event).settings);
-        const task = await read_object<Task>('task', id, lang);
+        const task = await read_object('task', id, lang);
         const process = create_dialogue_processor(settings, t);
         return {
             ...task,

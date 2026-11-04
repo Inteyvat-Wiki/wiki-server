@@ -1,9 +1,20 @@
 import { create_archive_text_processor } from '#server/utils/archive_text';
 import type { MiscItem, MiscPageData } from '~/types/misc';
 import type { Settings } from '~/types/settings';
+import type { LoadingSituation } from '@inteyvat-wiki/wiki-contracts/misc';
 
 export function create_misc_processor(settings: Settings, t: Function) {
     const text = create_archive_text_processor(settings, t);
+    function situation(value: LoadingSituation): LoadingSituation {
+        switch (value.action) {
+            case 'transport':
+                return { ...value, ...(value.areas ? { areas: value.areas.map(area => ({ ...area, name: text(area.name) })) } : {}) };
+            case 'certain_dungeon':
+                return { ...value, ...(value.dungeons ? { dungeons: value.dungeons.map(dungeon => ({ ...dungeon, name: text(dungeon.name) })) } : {}) };
+            default:
+                return { ...value };
+        }
+    }
     function page(value: MiscPageData): MiscPageData {
         return { ...value, name: text(value.name), description: text(value.description) };
     }
@@ -19,10 +30,7 @@ export function create_misc_processor(settings: Settings, t: Function) {
                 ...(node.speaker !== undefined ? { speaker: text(node.speaker) } : {}),
                 ...(node.location !== undefined ? { location: text(node.location) } : {}),
             })) } } : {}),
-            ...(value.loading_situations ? { loading_situations: value.loading_situations.map(situation => ({ ...situation,
-                ...(situation.areas ? { areas: situation.areas.map(area => ({ ...area, name: text(area.name) })) } : {}),
-                ...(situation.dungeons ? { dungeons: situation.dungeons.map(dungeon => ({ ...dungeon, name: text(dungeon.name) })) } : {}),
-            })) } : {}),
+            ...(value.loading_situations ? { loading_situations: value.loading_situations.map(situation) } : {}),
         };
     }
     return { page, item };

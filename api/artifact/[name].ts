@@ -1,13 +1,14 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { isError } from 'h3';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
-import type { Artifact, ArtifactItem } from '~/types/artifact';
+import type { Artifact, ArtifactItem } from '@inteyvat-wiki/wiki-contracts/artifact';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
 import { parse_settings } from '#server/utils/settings';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'artifact'>> => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;

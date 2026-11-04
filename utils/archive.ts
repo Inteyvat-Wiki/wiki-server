@@ -1,7 +1,7 @@
 import { create_archive_text_processor } from '#server/utils/archive_text';
 import { create_dialogue_processor } from '#server/utils/dialogue';
 import type { Settings } from '~/types/settings';
-import type { ArchiveItem, ArchivePage } from '~/types/archive';
+import type { ArchiveCategory, ArchiveItem, ArchivePage } from '@inteyvat-wiki/wiki-contracts/archive';
 import type { ArchiveClassification } from '~~/shared/archive';
 
 export function create_archive_processor(settings: Settings, t: Function) {
@@ -14,13 +14,13 @@ export function create_archive_processor(settings: Settings, t: Function) {
         ...(value.card_type ? { card_type: { ...value.card_type, name: text(value.card_type.name) } } : {}),
         ...(value.tags ? { tags: value.tags.map(tag => ({ ...tag, name: text(tag.name) })) } : {}),
     });
-    function page(value: ArchivePage): ArchivePage {
+    function page<C extends ArchiveCategory>(value: ArchivePage<C>): ArchivePage<C> {
         return { ...value, name: text(value.name), description: text(value.description),
             ...card_metadata(value),
             ...(value.classifications ? { classifications: classifications(value.classifications) } : {}),
         };
     }
-    function item(value: ArchiveItem): ArchiveItem {
+    function item<C extends ArchiveCategory>(value: ArchiveItem<C>): ArchiveItem<C> {
         return {
             ...value, name: text(value.name), description: text(value.description),
             ...card_metadata(value),

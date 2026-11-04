@@ -1,3 +1,4 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { isError } from 'h3';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
@@ -24,7 +25,7 @@ function get_character_substats_list(val: string[]): string[] {
     return val;
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'character'>> => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;
@@ -64,9 +65,13 @@ export default defineEventHandler(async (event) => {
 
             if (skill.sub_ids && skill.params) {
                 for (let i = 0; i < 15; i++) {
-                    params[skill.sub_ids[i] as number] = {};
+                    const sub_id = skill.sub_ids[i];
+                    if (sub_id === undefined) continue;
+                    const values: Record<string, number> = {};
+                    params[sub_id] = values;
                     for (let key in skill.params) {
-                        (params[skill.sub_ids[i] as number] as any)[key] = (skill.params as any)[key][i] as number;
+                        const value = skill.params[key]?.[i];
+                        if (value !== undefined) values[key] = value;
                     }
                 }
             }
@@ -83,17 +88,20 @@ export default defineEventHandler(async (event) => {
             if (link_desc.id) links[`N${link_desc.id}`] = ++count;
         }
 
-        function parse_details(text: string, params: any) {
+        function parse_details(text: string, params: Record<string, number[]> | null) {
             let values: string[] = [];
             let [title, value_text] = text.split('|');
 
             for (let i = 0; i < 15; i++) {
                 if (!value_text) continue;
                 values.push(value_text.replace(/{(param\d+):([^{}]*)}/g, (match, key, format) => {
-                    if (params[key][i] == undefined) {
-                        params[key][i] = params[key][i - 1];
-                    }
-                    let val = params[key][i] as number;
+                    const series = params?.[key];
+                    if (!series) throw new Error(`Missing skill parameter: ${key}`);
+                    const current = series[i] ?? series[i - 1];
+                    if (current !== undefined) series[i] = current;
+                    // Preserve the existing NaN display for an empty series; changing
+                    // that fallback is a separate data/presentation policy decision.
+                    let val = Number(current);
 
                     if (format.includes('P')) {
                         val = val * 100;

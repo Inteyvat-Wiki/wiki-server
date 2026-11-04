@@ -1,13 +1,14 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { isError } from 'h3';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
 import type { LocaleCode } from '~~/shared/i18n';
-import type { Geography } from '~/types/geography';
+import type { Geography } from '@inteyvat-wiki/wiki-contracts/geography';
 import { create_i18n } from '#server/utils/i18n';
 import { process_text } from '~~/server/utils/text';
 import { parse_settings } from '#server/utils/settings';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'geography'>> => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;

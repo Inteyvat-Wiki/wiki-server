@@ -1,3 +1,4 @@
+import type { DisplayResponse } from '@inteyvat-wiki/wiki-contracts/registry';
 import { isError } from 'h3';
 import { read_object } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
@@ -26,7 +27,7 @@ function get_weapon_substats_list(val: Record<number, string>[]): Record<number,
     return val;
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<DisplayResponse<'weapon'>> => {
     const lang: LocaleCode = get_lang(event);
     const query = getQuery(event);
     const t = create_i18n(lang).global.t;

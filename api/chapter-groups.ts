@@ -1,6 +1,6 @@
+import type { ContentPages } from '@inteyvat-wiki/wiki-contracts/registry';
 import { read_pages } from '#server/utils/page';
 import { get_lang } from '#server/utils/lang';
-import type { ChapterGroupPage } from '~/types/travel_log';
 
-export default defineEventHandler(event =>
-    read_pages<ChapterGroupPage>('chapter_group', get_lang(event)));
+export default defineEventHandler((event): Promise<ContentPages<'chapter_group'>> =>
+    read_pages('chapter_group', get_lang(event)));
