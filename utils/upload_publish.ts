@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, mkdtemp, open, lstat, readFile, rename, rm, unlink, type FileHandle } from 'node:fs/promises';
-import { dirname, join, basename } from 'node:path';
+import { dirname, join, basename, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { H3Event } from 'h3';
 import { DATA_UPLOAD_MAGIC, DATA_UPLOAD_CONTENT_TYPE, DATA_UPLOAD_TRAILER_BYTES, getUploadManifestError,
@@ -13,6 +13,13 @@ import { UploadReader } from './upload_stream';
 import { parse_upload_json, validate_image_references, validate_png, validate_upload_dataset } from './upload_validation';
 
 type Paths = ReturnType<typeof wiki_publish_paths>;
+const SYNC_BATCH_SIZE = 32;
+
+/** A rejected sync must not let cleanup race the other handles in this batch. */
+async function settle_all(tasks: Promise<void>[]) {
+    const results = await Promise.allSettled(tasks);
+    for (const result of results) if (result.status === 'rejected') throw result.reason;
+}
 
 async function prepare(base: string): Promise<Paths> {
     assert_wiki_base(base);
@@ -56,6 +63,24 @@ async function sync_directory(directory: string) {
     try { await handle.sync(); } finally { await handle.close(); }
 }
 
+async function sync_directories(directories: Set<string>, check: () => void) {
+    const levels = new Map<number, string[]>();
+    for (const directory of directories) {
+        const depth = directory.split(sep).length;
+        const level = levels.get(depth) || [];
+        level.push(directory); levels.set(depth, level);
+    }
+    // Every directory at a child depth must finish (including close) before ANY
+    // parent depth starts. String length is not a substitute for directory depth.
+    for (const depth of [...levels.keys()].sort((a, b) => b - a)) {
+        const level = levels.get(depth)!;
+        for (let offset = 0; offset < level.length; offset += SYNC_BATCH_SIZE) {
+            check();
+            await settle_all(level.slice(offset, offset + SYNC_BATCH_SIZE).map(sync_directory));
+        }
+    }
+}
+
 async function write_all(handle: FileHandle, bytes: Buffer) {
     let offset = 0;
     while (offset < bytes.length) {
@@ -84,17 +109,22 @@ async function atomic_rename(from: string, to: string, check: () => void) {
 async function receive_files(reader: UploadReader, staging: string, manifest: UploadManifest) {
     const files = new Set(manifest.files.map(file => file.path));
     const directories = new Set([staging]);
-    for (const file of manifest.files) {
-        reader.check();
-        const destination = resolve_data_path(staging, file.path);
-        await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
-        assert_real_directory(dirname(destination));
-        for (let directory = dirname(destination); directory !== staging; directory = dirname(directory)) directories.add(directory);
-        const handle = await open(destination, 'wx', 0o600);
-        const hash = createHash('sha256');
-        const head = Buffer.alloc(33); let headBytes = 0, remaining = file.size;
-        let tail = Buffer.alloc(0);
-        try {
+    const pending: FileHandle[] = [];
+    const finish = (sync: boolean) => settle_all(pending.splice(0).map(async handle => {
+        try { if (sync) await handle.sync(); } finally { await handle.close(); }
+    }));
+    try {
+        for (const file of manifest.files) {
+            reader.check();
+            const destination = resolve_data_path(staging, file.path);
+            await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
+            assert_real_directory(dirname(destination));
+            for (let directory = dirname(destination); directory !== staging; directory = dirname(directory)) directories.add(directory);
+            const handle = await open(destination, 'wx', 0o600);
+            pending.push(handle);
+            const hash = createHash('sha256');
+            const head = Buffer.alloc(33); let headBytes = 0, remaining = file.size;
+            let tail = Buffer.alloc(0);
             while (remaining > 0) {
                 const chunk = await reader.take(remaining);
                 hash.update(chunk); await write_all(handle, chunk); remaining -= chunk.length;
@@ -103,11 +133,19 @@ async function receive_files(reader: UploadReader, staging: string, manifest: Up
             }
             if (hash.digest('hex') !== file.sha256) upload_error(400, 'File checksum mismatch');
             if (file.path.endsWith('.png')) validate_png(head.subarray(0, headBytes), tail, file.size);
-            await handle.sync();
-        } finally { await handle.close(); }
-        if (file.path.endsWith('.json')) validate_image_references(parse_upload_json(await readFile(destination)), files);
+            // Awaited writes are visible to this validation read before fsync. Only
+            // descriptors accumulate; JSON/image bodies are not buffered per batch.
+            if (file.path.endsWith('.json')) validate_image_references(parse_upload_json(await readFile(destination)), files);
+            if (pending.length === SYNC_BATCH_SIZE) await finish(true);
+        }
+        await finish(true);
+        reader.check();
+        return directories;
+    } finally {
+        // Incomplete/invalid batches are never published. Close all of their
+        // handles before publish_upload is allowed to remove the staging tree.
+        await finish(false);
     }
-    return directories;
 }
 
 /** Reusing a hash never replaces an existing immutable release, even after a crash. */
@@ -188,9 +226,7 @@ export async function publish_upload(event: H3Event, limits: UploadLimits): Prom
         else {
             // Files are already fsynced. Persist every nested directory entry bottom-up,
             // including the final .manifest.json, before exposing this release by rename.
-            for (const directory of [...directories].sort((a, b) => b.length - a.length)) {
-                reader.check(); await sync_directory(directory);
-            }
+            await sync_directories(directories, () => reader!.check());
             await atomic_rename(staging, destination, () => reader!.check());
             staging = undefined; // From now on this release is retained, including on pointer failure.
             await sync_directory(paths.staging);
