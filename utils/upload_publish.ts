@@ -3,11 +3,11 @@ import { createReadStream } from 'node:fs';
 import { mkdir, mkdtemp, open, lstat, readFile, rename, rm, unlink, type FileHandle } from 'node:fs/promises';
 import { dirname, join, basename, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import type { H3Event } from 'h3';
+import { setResponseHeader, type H3Event } from 'h3';
 import { DATA_UPLOAD_MAGIC, DATA_UPLOAD_CONTENT_TYPE, DATA_UPLOAD_TRAILER_BYTES, getUploadManifestError,
     type UploadManifest, type UploadLimits, type UploadResult } from '@inteyvat-wiki/wiki-contracts/upload';
 import { assert_real_directory, assert_wiki_base, get_wiki_base_root, read_wiki_release, RELEASE_ID, resolve_data_path, wiki_publish_paths } from './data_root';
-import { single_upload_header, upload_timeouts } from './upload_auth';
+import { allow_missing_upload_images, single_upload_header, upload_timeouts } from './upload_auth';
 import { upload_error } from './upload_error';
 import { UploadReader } from './upload_stream';
 import { parse_upload_json, validate_image_references, validate_png, validate_upload_dataset } from './upload_validation';
@@ -106,7 +106,7 @@ async function atomic_rename(from: string, to: string, check: () => void) {
     }
 }
 
-async function receive_files(reader: UploadReader, staging: string, manifest: UploadManifest) {
+async function receive_files(reader: UploadReader, staging: string, manifest: UploadManifest, missingImages?: Set<string>) {
     const files = new Set(manifest.files.map(file => file.path));
     const directories = new Set([staging]);
     const pending: FileHandle[] = [];
@@ -135,7 +135,7 @@ async function receive_files(reader: UploadReader, staging: string, manifest: Up
             if (file.path.endsWith('.png')) validate_png(head.subarray(0, headBytes), tail, file.size);
             // Awaited writes are visible to this validation read before fsync. Only
             // descriptors accumulate; JSON/image bodies are not buffered per batch.
-            if (file.path.endsWith('.json')) validate_image_references(parse_upload_json(await readFile(destination)), files);
+            if (file.path.endsWith('.json')) validate_image_references(parse_upload_json(await readFile(destination)), files, missingImages);
             if (pending.length === SYNC_BATCH_SIZE) await finish(true);
         }
         await finish(true);
@@ -169,6 +169,9 @@ async function verify_existing(root: string, bytes: Buffer, manifest: UploadMani
 }
 
 export async function publish_upload(event: H3Event, limits: UploadLimits): Promise<UploadResult> {
+    // authenticate_upload has already run. Reject unsupported test requests before
+    // creating publisher state, acquiring a lock or consuming any request body.
+    const missingImages = allow_missing_upload_images(event) ? new Set<string>() : undefined;
     const base = get_wiki_base_root();
     const paths = await prepare(base);
     const unlock = await acquire_lock(paths);
@@ -210,7 +213,7 @@ export async function publish_upload(event: H3Event, limits: UploadLimits): Prom
         staging = await mkdtemp(join(paths.staging, 'upload-'));
         stagingIdentity = await lstat(staging);
         await sync_directory(paths.staging);
-        const directories = await receive_files(reader, staging, manifest);
+        const directories = await receive_files(reader, staging, manifest, missingImages);
         if (!timingSafeEqual(await reader.bytes(DATA_UPLOAD_TRAILER_BYTES), digest)) upload_error(400, 'Invalid upload completion trailer');
         await reader.eof();
         await validate_upload_dataset(staging, manifest, () => reader!.check());
@@ -244,6 +247,9 @@ export async function publish_upload(event: H3Event, limits: UploadLimits): Prom
         });
         pointerTemp = undefined;
         await sync_directory(paths.root);
+        // Keep the closed UploadResult contract unchanged; only the authenticated
+        // test response carries a count, never filenames or filesystem paths.
+        if (missingImages) setResponseHeader(event, 'x-wiki-missing-image-count', String(missingImages.size));
         return { schema: 1, releaseId, fileCount: manifest.files.length, totalBytes: manifest.totalBytes };
     } finally {
         reader?.dispose();

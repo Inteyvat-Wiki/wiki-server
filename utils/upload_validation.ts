@@ -18,7 +18,7 @@ export function parse_upload_json(bytes: Uint8Array): unknown {
 }
 
 /** Traverse iteratively: deeply nested JSON must not overflow the validation stack. */
-export function validate_image_references(value: unknown, files: Set<string>): void {
+export function validate_image_references(value: unknown, files: Set<string>, missingImages?: Set<string>): void {
     const pending: unknown[] = [value];
     while (pending.length) {
         const entry = pending.pop();
@@ -26,7 +26,13 @@ export function validate_image_references(value: unknown, files: Set<string>): v
             // Includes images in formatted text, not only fields named icon/image.
             for (const match of entry.matchAll(/\/images\/[^\s<>"'\[\](){}]+/g)) {
                 const image = match[0].slice(1);
-                if (!isUploadPath(image) || !files.has(image)) upload_error(400, 'Missing or invalid dataset image');
+                // Test mode only tolerates absence, never invalid paths. The shared
+                // set counts distinct missing files across the complete upload.
+                if (!isUploadPath(image)) upload_error(400, 'Missing or invalid dataset image');
+                if (!files.has(image)) {
+                    if (!missingImages) upload_error(400, 'Missing or invalid dataset image');
+                    missingImages.add(image);
+                }
             }
         } else if (Array.isArray(entry)) {
             for (const child of entry) pending.push(child);

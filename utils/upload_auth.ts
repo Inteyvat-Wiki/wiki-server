@@ -30,6 +30,15 @@ export function authenticate_upload(event: H3Event): void {
     }
 }
 
+/** The authenticated upload route must opt in on BOTH the process and request. */
+export function allow_missing_upload_images(event: H3Event): boolean {
+    const requested = single_upload_header(event, 'x-wiki-allow-missing-images');
+    if (requested === undefined) return false;
+    if (requested !== '1') upload_error(400, 'Invalid missing image override');
+    if (process.env.WIKI_UPLOAD_ALLOW_MISSING_IMAGES !== '1') upload_error(403, 'Missing image override is disabled');
+    return true;
+}
+
 function setting(name: string, fallback: number, maximum: number): number {
     const raw = process.env[name];
     if (raw === undefined) return fallback;
