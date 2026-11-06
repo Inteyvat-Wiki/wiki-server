@@ -1,12 +1,13 @@
 import { readFile } from 'fs/promises'
-import { fileURLToPath } from 'url'
+import { createError } from 'h3'
+import { get_wiki_data_root, resolve_data_path } from './data_root'
 import type { LocaleCode } from '~~/shared/i18n'
 
 // Maps use a separate protocol; keep its index typed without changing map handlers.
 export function read_common(file: 'maps'): Promise<Record<string, string[]>>;
 export function read_common(file: string): Promise<unknown>;
 export async function read_common(file: string): Promise<unknown> {
-    const path = fileURLToPath(new URL(`../../data/common/${file}.json`, import.meta.url))
+    const path = resolve_data_path(get_wiki_data_root(), 'common', `${file}.json`)
     try {
         const data = await readFile(path, 'utf-8');
         const value: unknown = JSON.parse(data);
@@ -27,7 +28,7 @@ export async function read_common(file: string): Promise<unknown> {
 }
 
 export async function read_lang(file: string, lang: LocaleCode): Promise<unknown> {
-    const path = fileURLToPath(new URL(`../../data/${lang}/${file}.json`, import.meta.url))
+    const path = resolve_data_path(get_wiki_data_root(), lang, `${file}.json`)
     try {
         const data = await readFile(path, 'utf-8');
         return JSON.parse(data);
